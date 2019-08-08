@@ -55,6 +55,8 @@ public class AdminActivity extends AppCompatActivity {
         setContentView(R.layout.activity_admin);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        getSupportActionBar().setTitle("Travelmantics");
+
 
         titleEt = findViewById(R.id.deal_title);
         descriptionEt = findViewById(R.id.deal_description);
@@ -64,28 +66,32 @@ public class AdminActivity extends AppCompatActivity {
 
         mTravelDeal = (TravelDeal) getIntent().getSerializableExtra(EDIT_DEAL);
 
-        if (mTravelDeal != null) {
-            isInsertTravelDeal =false;
-            key = mTravelDeal.getId();
+        if (TravelDealRepository.getReference(this).getAdminState()) {
+            if (mTravelDeal != null) {
+                isInsertTravelDeal =false;
+                key = mTravelDeal.getId();
+                titleEt.setText(mTravelDeal.getTitle());
+                descriptionEt.setText(mTravelDeal.getDescription());
+                Picasso.get().load(mTravelDeal.getImageUrl()).into(mSelectedImage);
+                priceEt.setText(mTravelDeal.getPrice());
+            }
+            else {
+                mTravelDeal = new TravelDeal();
+            }
+        }
+        else {
             titleEt.setText(mTravelDeal.getTitle());
             descriptionEt.setText(mTravelDeal.getDescription());
             Picasso.get().load(mTravelDeal.getImageUrl()).into(mSelectedImage);
             priceEt.setText(mTravelDeal.getPrice());
+
+            titleEt.setEnabled(false);
+            descriptionEt.setEnabled(false);
+            priceEt.setEnabled(false);
+            mUploadImageBtn.setVisibility(View.INVISIBLE);
         }
-        else {
-            mTravelDeal = new TravelDeal();
-        }
 
 
-
-        FloatingActionButton fab = findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
 
         mUploadImageBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -111,9 +117,14 @@ public class AdminActivity extends AppCompatActivity {
 
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
-
-        if (isInsertTravelDeal) {
+        if(TravelDealRepository.getReference(this).getAdminState()) {
+            if (isInsertTravelDeal) {
+                menu.findItem(R.id.delete).setVisible(false);
+            }
+        }
+        else {
             menu.findItem(R.id.delete).setVisible(false);
+            menu.findItem(R.id.save).setVisible(false);
         }
         return true;
     }
@@ -128,8 +139,8 @@ public class AdminActivity extends AppCompatActivity {
         //noinspection SimplifiableIfStatement
         if (id == R.id.delete) {
 
-            TravelDealRepository.getReference().deleteTravelDeal(key);
-            TravelDealRepository.getReference().deleteImage(mTravelDeal.getImageName());
+            TravelDealRepository.getReference(this).deleteTravelDeal(key);
+            TravelDealRepository.getReference(this).deleteImage(mTravelDeal.getImageName());
             backtoList();
             return true;
         }
@@ -139,13 +150,13 @@ public class AdminActivity extends AppCompatActivity {
                 mTravelDeal.setTitle(titleEt.getText().toString());
                 mTravelDeal.setDescription(descriptionEt.getText().toString());
                 mTravelDeal.setPrice(priceEt.getText().toString());
-                TravelDealRepository.getReference().insertTravelDeal(mTravelDeal);
+                TravelDealRepository.getReference(this).insertTravelDeal(mTravelDeal);
             }
             else {
                 mTravelDeal.setTitle(titleEt.getText().toString());
                 mTravelDeal.setDescription(descriptionEt.getText().toString());
                 mTravelDeal.setPrice(priceEt.getText().toString());
-                TravelDealRepository.getReference().editTravelDeal(key, mTravelDeal);
+                TravelDealRepository.getReference(this).editTravelDeal(key, mTravelDeal);
             }
 
             backtoList();
@@ -162,7 +173,7 @@ public class AdminActivity extends AppCompatActivity {
             if (requestCode == REQUEST_IMAGE_GET && data.getData() != null ) {
                 Uri imageUri = data.getData();
                 mSelectedImage.setImageURI(imageUri);
-                TravelDealRepository.getReference().savePicture(imageUri).addOnSuccessListener(this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                TravelDealRepository.getReference(this).savePicture(imageUri).addOnSuccessListener(this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
                     @Override
                     public void onSuccess(final UploadTask.TaskSnapshot taskSnapshot) {
                         taskSnapshot.getStorage().getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {

@@ -36,12 +36,9 @@ public class UserActivity extends AppCompatActivity {
 
     private TravelDealAdapter mAdaptor;
 
-    private FirebaseAuth mAuth;
-
-    private static final int RC_SIGN_IN = 5;
+    public static final int RC_SIGN_IN = 5;
 
     private static final String TAG = "UserActivity";
-    private FirebaseUser firebaseUser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,67 +46,40 @@ public class UserActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        //mAuth = FirebaseAuth.getInstance();
+        getSupportActionBar().setTitle("Travelmantics");
 
         mRecyclerview = findViewById(R.id.travel_recycler_vw);
-
-
-        FloatingActionButton fab = findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
-
-        firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
-        if (firebaseUser == null) {
-            startAuthentication();
-        }
-        Log.i(TAG, "onCreate: ");
-        //TravelDealRepository.getReference().checkAdmin(firebaseUser.getUid(),this);
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-//        FirebaseUser currentUser = mAuth.getCurrentUser();
-//        if (currentUser == null) {
-//            Intent intent = new Intent(this, LoginActivity.class);
-//            startActivity(intent);
-//            finish();
-//        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+
+        TravelDealRepository.getReference(this).attachAuthStateListener();
+
         mRecyclerview.setLayoutManager(new LinearLayoutManager(this));
         mAdaptor = new TravelDealAdapter(this);
         mRecyclerview.setAdapter(mAdaptor);
-//        if (TravelDealRepository.getReference().getAdminState()) {
-//            invalidateOptionsMenu();
-//        }
-        //Log.i(TAG, "onResume: "+ firebaseUser.getUid());
+
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
-        if (TravelDealRepository.getReference().getAdminState()) {
-            menu.findItem(R.id.insert_deal).setVisible(true);
-        }
+
         return true;
     }
 
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
 
-//        if (TravelDealRepository.getReference().getAdminState()) {
-//            menu.findItem(R.id.insert_deal).setVisible(true);
-//        }
+        MenuItem insertItem  = menu.findItem(R.id.insert_deal);
+        if (TravelDealRepository.getReference(this).getAdminState() == true) {
+            insertItem.setVisible(true);
+        }
+        else
+            insertItem.setVisible(false);
         return true;
     }
 
@@ -119,19 +89,22 @@ public class UserActivity extends AppCompatActivity {
 
 
         if (id == R.id.logout) {
+
             AuthUI.getInstance()
                     .signOut(this)
                     .addOnCompleteListener(new OnCompleteListener<Void>() {
                         public void onComplete(@NonNull Task<Void> task) {
-                            startAuthentication();
+                           TravelDealRepository.getReference(UserActivity.this).attachAuthStateListener();
                         }
                     });
+            TravelDealRepository.getReference(this).dettachAuthStateListener();
+            TravelDealRepository.getReference(this).removeChildListener();
+            TravelDealRepository.getReference(this).isAdmin = false;
             return true;
         }
         else if (id == R.id.insert_deal) {
             Intent i = new Intent(this, AdminActivity.class);
             startActivity(i);
-            finish();
             return true;
         }
 
@@ -141,7 +114,8 @@ public class UserActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        TravelDealRepository.getReference().removeChildListener();
+        TravelDealRepository.getReference(this).dettachAuthStateListener();
+        TravelDealRepository.getReference(this).removeChildListener();
     }
 
     @Override
@@ -149,28 +123,11 @@ public class UserActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == RC_SIGN_IN) {
-            IdpResponse response = IdpResponse.fromResultIntent(data);
 
             if (resultCode == RESULT_OK) {
-                // Successfully signed in
-                firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
-                TravelDealRepository.getReference().checkAdmin(firebaseUser.getUid(),this);
-                // ...
+                invalidateOptionsMenu();
             }
         }
     }
 
-    private void startAuthentication() {
-        List<AuthUI.IdpConfig> providers = Arrays.asList(
-                new AuthUI.IdpConfig.EmailBuilder().build(),
-                new AuthUI.IdpConfig.GoogleBuilder().build());
-
-// Create and launch sign-in intent
-        startActivityForResult(
-                AuthUI.getInstance()
-                        .createSignInIntentBuilder()
-                        .setAvailableProviders(providers)
-                        .build(),
-                RC_SIGN_IN);
-    }
 }

@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.liadi.oluwaseun.travelmantics.AdminActivity;
 import com.liadi.oluwaseun.travelmantics.R;
+import com.liadi.oluwaseun.travelmantics.UserActivity;
 import com.liadi.oluwaseun.travelmantics.models.TravelDeal;
 import com.liadi.oluwaseun.travelmantics.repository.TravelDealRepository;
 import com.squareup.picasso.Picasso;
@@ -30,7 +31,7 @@ public class TravelDealAdapter extends RecyclerView.Adapter<TravelDealAdapter.Tr
         this.context = context;
         mTravelDeals = new ArrayList<>();
 
-        TravelDealRepository.getReference().readTravelDeals(mTravelDeals, this);
+        TravelDealRepository.getReference((UserActivity)context).readTravelDeals(mTravelDeals, this);
     }
 
     @NonNull

@@ -7,6 +7,8 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.firebase.ui.auth.AuthUI;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -15,9 +17,11 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
+import com.liadi.oluwaseun.travelmantics.UserActivity;
 import com.liadi.oluwaseun.travelmantics.adapter.TravelDealAdapter;
 import com.liadi.oluwaseun.travelmantics.models.TravelDeal;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class TravelDealRepository {
@@ -38,18 +42,39 @@ public class TravelDealRepository {
 
     private static final String TAG = "TravelDealRepository";
 
-    public boolean isAdmin = false;
+    private FirebaseAuth mFirebaseAuth;
 
-    private TravelDealRepository() {
+    private Activity mActivity;
+
+    private FirebaseAuth.AuthStateListener mAuthStateListener;
+
+    public boolean isAdmin;
+
+    private TravelDealRepository(Activity activity) {
         database = FirebaseDatabase.getInstance();
         myRef = database.getReference();
         storage = FirebaseStorage.getInstance();
         mStorageRef = storage.getReference("deals_picture");
+        mActivity = activity;
+
+        mFirebaseAuth = FirebaseAuth.getInstance();
+        mAuthStateListener = new FirebaseAuth.AuthStateListener() {
+            @Override
+            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+                if (firebaseAuth.getCurrentUser() == null){
+                    startAuthentication();
+                } else{
+                  String userId = firebaseAuth.getUid();
+                  checkAdmin(userId,(UserActivity ) mActivity);
+                }
+
+            }
+        };
     }
 
-    public static TravelDealRepository getReference() {
+    public static TravelDealRepository getReference(Activity activity) {
         if (travelDealRepository == null) {
-            travelDealRepository = new TravelDealRepository();
+            travelDealRepository = new TravelDealRepository(activity);
         }
         return travelDealRepository;
     }
@@ -98,7 +123,6 @@ public class TravelDealRepository {
         myRef.child("traveldeals").removeEventListener(readChildEventListener);
         if (isAdmin) {
             myRef.child("administrator").removeEventListener(isAdminChildEventListener);
-            isAdmin = false;
         }
 
     }
@@ -119,13 +143,15 @@ public class TravelDealRepository {
         mStorageRef.child(imageName).delete();
     }
 
-    public void checkAdmin(String uId, final Activity activity) {
+    public void checkAdmin(String uId, final UserActivity activity) {
+
+        isAdmin = false;
         isAdminChildEventListener = new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
                     isAdmin = true;
                     activity.invalidateOptionsMenu();
-                Log.i(TAG, "onChildAdded: isAdmin "+ "called");
+                Log.i(TAG, "onChildAdded: isAdmin "+ "user is admin");
             }
 
             @Override
@@ -151,9 +177,31 @@ public class TravelDealRepository {
         myRef.child("administrator").child(uId).addChildEventListener(isAdminChildEventListener);
     }
 
+    public void attachAuthStateListener() {
+        mFirebaseAuth.addAuthStateListener(mAuthStateListener);
+    }
+
+    public void dettachAuthStateListener() {
+        mFirebaseAuth.removeAuthStateListener(mAuthStateListener);
+    }
+
     public boolean getAdminState() {
         Log.i(TAG, "getAdminState: "+ isAdmin);
         return isAdmin;
 
+    }
+
+    public void startAuthentication() {
+        List<AuthUI.IdpConfig> providers = Arrays.asList(
+                new AuthUI.IdpConfig.EmailBuilder().build(),
+                new AuthUI.IdpConfig.GoogleBuilder().build());
+
+// Create and launch sign-in intent
+        mActivity.startActivityForResult(
+                AuthUI.getInstance()
+                        .createSignInIntentBuilder()
+                        .setAvailableProviders(providers)
+                        .build(),
+                UserActivity.RC_SIGN_IN);
     }
 }
